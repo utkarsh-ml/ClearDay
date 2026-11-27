@@ -1,3 +1,5 @@
+import { initShell, renderReading, saved, remember } from './shell.js';
+import { initIntelligence, updateIntelligence } from './intelligence.js';
 import { estimateAvoidedCO2 } from '/shared/calc.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -6,6 +8,7 @@ const PREFS_KEY = 'clearday.preferences.v1';
 
 const state = {
   plan: null,
+  source: null,
   token: null,
   inputMode: 'search',
   place: null,
@@ -36,7 +39,13 @@ function toast(message) {
 }
 
 async function api(url, options) {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, {signal: AbortSignal.timeout(url === '/api/ask' ? 60000 : 45000), ...options});
+  } catch (error) {
+    if (error.name === 'TimeoutError') throw Error('The server took too long to respond. It may still be starting up.');
+    throw Error('Could not connect to ClearDay. Check your connection and retry.');
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data;
@@ -147,23 +156,34 @@ $('#exampleBtn').addEventListener('click', () => submitPlan({ example: true }));
 
 /* ---------------- city search ---------------- */
 let searchTimer;
-$('#cityInput').addEventListener('input', () => {
+let searchVersion = 0;
+function dismissSuggestions() {
   clearTimeout(searchTimer);
+  searchVersion++;
+  $('#suggestions').hidden = true;
+}
+$('#cityInput').addEventListener('input', () => {
+  dismissSuggestions();
+  const version = searchVersion;
+  state.place = null;
+  $('#lookupError').hidden = true;
   const q = $('#cityInput').value.trim();
   if (q.length < 2) { $('#suggestions').hidden = true; return; }
   searchTimer = setTimeout(async () => {
     try {
       const { results } = await api(`/api/geocode?q=${encodeURIComponent(q)}`);
-      if (!results.length) { $('#suggestions').hidden = true; return; }
-      $('#suggestions').innerHTML = results.map((r, i) => `<button type="button" role="option" data-index="${i}">${esc(r.name)} <small>— ${esc([r.region, r.country].filter(Boolean).join(', '))}</small></button>`).join('');
+      if (version !== searchVersion) return;
+      if (!results.length) { $('#suggestions').hidden = true; showLookupError('No matching city found. Try another spelling or enter coordinates.'); return; }
+      $('#suggestions').innerHTML = results.map((r, i) => `<button type="button" data-index="${i}">${esc(r.name)} <small>— ${esc([r.region, r.country].filter(Boolean).join(', '))}</small></button>`).join('');
       $('#suggestions').hidden = false;
       $$('#suggestions button').forEach((btn) => btn.addEventListener('click', () => {
         state.place = results[Number(btn.dataset.index)];
         $('#cityInput').value = [state.place.name, state.place.country].filter(Boolean).join(', ');
-        $('#suggestions').hidden = true;
+        dismissSuggestions();
         submitPlan(cityPayload());
       }));
     } catch {
+      if (version !== searchVersion) return;
       $('#suggestions').hidden = true;
       showLookupError('City lookup is unavailable right now. Retry, or enter your AQI reading manually.');
     }
@@ -171,10 +191,44 @@ $('#cityInput').addEventListener('input', () => {
 });
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.suggestions') && e.target !== $('#cityInput')) $('#suggestions').hidden = true;
+  if (!e.target.closest('.suggestions') && e.target !== $('#cityInput')) dismissSuggestions();
 });
 
 const coordPattern = /^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/;
+let locationVersion = 0;
+function cancelLocation() {
+  locationVersion += 1;
+  $('#locateBtn').disabled = false;
+  $('#locationStatus').textContent = 'Share an approximate area with Open-Meteo for a local air estimate.';
+}
+$('#cityInput').addEventListener('input', cancelLocation);
+$$('.seg').forEach(button => button.addEventListener('click', cancelLocation));
+$('#locateBtn').addEventListener('click', () => {
+  dismissSuggestions();
+  $('#lookupError').hidden = true;
+  invalidatePlanRequest();
+  const status = $('#locationStatus');
+  if (!window.isSecureContext || !navigator.geolocation) {
+    status.textContent = 'Location requires HTTPS or localhost and a supported browser. You can also search by city.';
+    return;
+  }
+  const version = ++locationVersion;
+  $('#locateBtn').disabled = true;
+  status.textContent = 'Waiting for your device location…';
+  navigator.geolocation.getCurrentPosition(position => {
+    if (version !== locationVersion) return;
+    state.place = {name: 'Current area', latitude: Number(position.coords.latitude.toFixed(1)), longitude: Number(position.coords.longitude.toFixed(1))};
+    $('#cityInput').value = state.place.name;
+    $('#suggestions').hidden = true;
+    submitPlan(cityPayload());
+  }, error => {
+    if (version !== locationVersion) return;
+    $('#locateBtn').disabled = false;
+    status.textContent = error.code === 1
+      ? 'Location access is blocked. Allow location for this site in your browser, or search by city below.'
+      : 'Your device could not find a location. Check device location settings, try again, or search by city below.';
+  }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000});
+});
 function cityPayload() {
   const typed = $('#cityInput').value.trim();
   const coord = typed.match(coordPattern);
@@ -187,8 +241,7 @@ function cityPayload() {
 
 $('#cityForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  clearTimeout(searchTimer);
-  $('#suggestions').hidden = true;
+  dismissSuggestions();
   if (!$('#cityInput').value.trim()) return toast('Enter a city name or coordinates.');
   submitPlan(cityPayload());
 });
@@ -201,9 +254,34 @@ $('#manualForm').addEventListener('submit', (e) => {
 });
 
 /* ---------------- build plan ---------------- */
+let planVersion = 0;
+const refreshLabel = $('#refreshBtn').textContent;
+const defaultCity = {city:'New Delhi',label:'New Delhi, India',lat:28.61,lon:77.21};
+let lastAttempt = defaultCity;
+function invalidatePlanRequest() {
+  planVersion++;
+  $('#refreshBtn').disabled = !state.plan;
+  $('#refreshBtn').textContent = refreshLabel;
+  $('#airCard').removeAttribute('aria-busy');
+  $('#reloadAir').disabled = false;
+  if (!state.plan) updateIntelligence({standard: $('#standard').value});
+}
+$('#cityInput').addEventListener('input', invalidatePlanRequest);
+$$('.seg').forEach(button => button.addEventListener('click', invalidatePlanRequest));
+
 async function submitPlan(source) {
+  lastAttempt = source;
+  cancelLocation();
+  const version = ++planVersion;
+  $('#pageError').hidden = true;
+  $('#reloadAir').disabled = true;
+  if (!state.plan) updateIntelligence({loading:true,standard:$('#standard').value});
   const btn = $('#refreshBtn');
-  const old = btn.textContent;
+
+  const locationLookup = !source.example && source.aqi === undefined;
+  const area = source.label || source.city;
+  if (locationLookup) $('#locationStatus').textContent = 'Looking up the current AQI for ' + area + '…';
+  $('#airCard').setAttribute('aria-busy', 'true');
   btn.disabled = true;
   btn.textContent = 'Building plan…';
   $('#lookupError').hidden = true;
@@ -213,60 +291,74 @@ async function submitPlan(source) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...source, profile: readProfile() }),
     });
+    if (version !== planVersion) return;
+    if (locationLookup && plan.air.source === 'offline-estimate') {
+      throw new Error('Current air data is unavailable for ' + area + '.');
+    }
+    const newConversation = !state.plan || state.plan.air.city !== plan.air.city || state.plan.air.source !== plan.air.source || state.plan.air.aqi !== plan.air.aqi;
+    if (newConversation || plan.planUnavailable) {
+      $('#chatLog').replaceChildren();
+      bubble('Ask about this reading or the actions in your plan.', 'bot');
+    }
+    state.source = source;
     state.plan = plan;
     state.token = plan.token;
     state.selected = new Set((plan.communitySheet?.actions || []).map((a) => a.id));
-    renderAir(plan);
-    renderPlan(plan);
-    renderGuide(plan);
+    $('#planEmpty').hidden = !plan.planUnavailable;
+    if (!locationLookup) $('#standard').value = 'us';
+    else if (state.lastWasManual) $('#standard').value = saved('clearday.standard','in');
+    state.lastWasManual = !locationLookup;
+    renderReading(plan, $('#standard').value);
+    if ($('#locationDialog').open) $('#locationDialog').close();
+    if (locationLookup) $('#locationStatus').textContent = 'Updated the AQI and daily plan for ' + plan.air.city + '.';
+    if (plan.planUnavailable) {
+      $('#planBlocks').replaceChildren();
+      $('#impactStrip').hidden = true;
+      $('#planSummary').textContent = 'Daily plan unavailable';
+      $('#planEmpty').textContent = plan.reason;
+      $('#guideSub').textContent = 'Enter a US AQI or choose a different location to ask about a plan.';
+      $('#askSuggestions').replaceChildren();
+      $('#askBtn').disabled = true;
+      $('#selectedCount').textContent = '0 of 3 selected for print';
+      $('#printBtn').disabled = true;
+      $('#printSheet').replaceChildren();
+    } else {
+      $('#askBtn').disabled = false;
+      renderPlan(plan);
+      renderGuide(plan);
+    }
     savePreferences();
   } catch (error) {
-    showLookupError(error.message + ' You can retry the search or enter a manual AQI reading.');
+    if (version !== planVersion) return;
+    const previous = state.plan ? ' The dashboard still shows ' + state.plan.air.city + '.' : '';
+    if (locationLookup) $('#locationStatus').textContent = 'Lookup unsuccessful.' + previous;
+    showLookupError(error.message + previous + ' Try again or enter an AQI reading.');
+    $('#pageErrorText').textContent = error.message + previous;
+    $('#pageError').hidden = false;
+    if (!state.plan) {
+      updateIntelligence({standard:$('#standard').value});
+      $('#category').textContent = 'Reading unavailable';
+      $('#aqiMeaning').textContent = 'Retry the lookup or choose another location.';
+      $('#kindBadge').textContent = 'No reading';
+      $('#airCity').textContent = area || 'No location selected';
+      $('#headerCity').textContent = area || 'Choose location';
+    }
     toast(error.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = old;
+    if (version === planVersion) {
+      $('#airCard').removeAttribute('aria-busy');
+      $('#reloadAir').disabled = false;
+      btn.disabled = !state.plan;
+      btn.textContent = refreshLabel;
+    }
   }
-}
-
-/* ---------------- air card ---------------- */
-function renderAir(plan) {
-  const air = plan.air;
-  const manual = /manual/i.test(air.sourceText);
-  const example = /example/i.test(air.sourceText);
-  $('#airCity').textContent = air.city + (air.country ? `, ${air.country}` : '');
-  $('#aqiNumber').textContent = air.aqi;
-  $('#aqiMeaning').textContent = air.advisory?.general || air.advisory?.label || 'No advisory available.';
-  $('#kindBadge').textContent = manual ? 'Manual reading' : example ? 'Example scenario' : 'Modeled estimate';
-  $('#advisory').textContent = `Category: ${air.advisory?.label || 'unknown'}. ${air.advisory?.sensitive || ''}`;
-
-  // Scale bands are 5 equal segments: 0–50, 51–100, 101–150, 151–200, 201+ (200 = 80%).
-  const marker = $('#scaleMarker');
-  marker.hidden = false;
-  marker.style.left = `calc(${Math.min(99, Math.max(0, (air.aqi / 250) * 100))}% - 1px)`;
-
-  const headline = $('#headlineAction');
-  if (plan.headlineAction) {
-    headline.hidden = false;
-    headline.textContent = `Most relevant now: ${plan.headlineAction.what}`;
-  } else headline.hidden = true;
-
-  const href = safeUrl(air.sourceUrl);
-  const sourceLink = href
-    ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(air.sourceText)}</a>`
-    : esc(air.sourceText);
-  $('#sourceLine').innerHTML = `Source: ${sourceLink}`;
-  $('#timeLine').textContent = `Local time: ${air.localTime || '—'}`;
-  const note = $('#sourceNote');
-  note.textContent = air.sourceNote || '';
-  note.hidden = !air.sourceNote;
 }
 
 /* ---------------- daily plan ---------------- */
 const SLOT_META = {
-  morning: { icon: '🌤️', label: 'Morning' },
-  midday: { icon: '☀️', label: 'Midday' },
-  evening: { icon: '🌙', label: 'Evening' },
+  morning: { icon: 'sun', label: 'Morning' },
+  midday: { icon: 'clock', label: 'Afternoon' },
+  evening: { icon: 'theme', label: 'Evening' },
 };
 
 function visibleActions(plan) {
@@ -290,10 +382,10 @@ function renderPlan(plan) {
       const emptyMsg = state.noCost
         ? 'No no-cost actions in this block. Turn off the filter to see all options.'
         : 'No extra changes needed in this time block for your current reading and routine.';
-      return `<div class="time-block"><h3><span>${meta.icon}</span>${meta.label}</h3><p class="empty-state">${emptyMsg}</p></div>`;
+      return `<div class="time-block"><h3><span><svg class="icon" aria-hidden="true"><use href="/icons.svg#${meta.icon}"></use></svg></span>${meta.label}</h3><p class="empty-state">${emptyMsg}</p></div>`;
     }
     return `<div class="time-block">
-      <h3><span>${meta.icon}</span>${meta.label}</h3>
+      <h3><span><svg class="icon" aria-hidden="true"><use href="/icons.svg#${meta.icon}"></use></svg></span>${meta.label}</h3>
       ${actions.map((a) => actionCard(a)).join('')}
     </div>`;
   }).join('');
@@ -302,7 +394,7 @@ function renderPlan(plan) {
 
   const impact = plan.impact;
   $('#impactStrip').hidden = false;
-  $('#impactDose').textContent = `↓ ${impact.doseReductionPct}%`;
+  $('#impactDose').textContent = Number.isFinite(plan.air.pm25) ? `↓ ${impact.doseReductionPct}%` : 'Unavailable';
   $('#impactCo2').textContent = `${impact.co2Saved} kg/day`;
   $('#impactNote').textContent = state.noCost
     ? `Estimated from the full ${all.length}-action plan before filtering (${visible.length} no-cost actions shown). Not a personal health outcome or a predicted change in local AQI.`
@@ -319,7 +411,7 @@ function actionCard(a) {
     <label class="plan-check"><input type="checkbox" value="${esc(a.id)}" ${state.selected.has(a.id) ? 'checked' : ''} aria-label="Select ${esc(a.what)} for community printout" /></label>
     <div class="action-body">
       <h4>${esc(a.what)}</h4>
-      <p><strong>Why:</strong> ${esc(a.why)}</p>
+      <details class="action-reason"><summary>Why this helps</summary><p>${esc(a.why)}</p></details>
       <div class="tags">
         <span class="tag ${esc(a.kind)}">${esc(a.typeLabel)}</span>
         <span class="tag ${a.noCost ? 'free' : ''}">${a.noCost ? 'No equipment purchase' : 'Needs equipment'}</span>
@@ -354,21 +446,19 @@ function updateSelectionUI() {
 
 $('#noCostFilter').addEventListener('change', (e) => {
   state.noCost = e.target.checked;
-  if (state.plan) renderPlan(state.plan);
+  if (state.plan?.dayPlan) renderPlan(state.plan);
 });
 
 $('#refreshBtn').addEventListener('click', () => {
   if (!state.plan) return toast('Choose a city or enter a reading first.');
-  const air = state.plan.air;
-  if (/manual/i.test(air.sourceText)) submitPlan({ aqi: state.plan.air.aqi, city: state.plan.air.city });
-  else if (/example/i.test(air.sourceText)) submitPlan({ example: true });
-  else submitPlan(cityPayload());
+  submitPlan(state.source);
 });
 
 /* ---------------- guide ---------------- */
 const SUGGESTIONS = [
   'We walk to school and have no purifier. What can we change today?',
-  'I drive to work — what should I change?',
+  'Which pollutant contributes most to the US AQI?',
+  'How does the US AQI compare with yesterday?',
   'Which actions cost nothing?',
   'How do we share this with our school?',
 ];
@@ -419,9 +509,11 @@ $('#askForm').addEventListener('submit', async (e) => {
   const question = input.value.trim();
   if (!question) return;
   if (!state.token) return toast('Set a reading first, then ask a question.');
+  const token = state.token;
   bubble(question, 'user');
   input.value = '';
   const pending = bubble('Thinking…', 'bot');
+  pending.classList.add('pending');
   $('#askBtn').disabled = true;
   try {
     const answer = await api('/api/ask', {
@@ -429,16 +521,17 @@ $('#askForm').addEventListener('submit', async (e) => {
       body: JSON.stringify({ token: state.token, question }),
     });
     pending.remove();
-    if (answer.label) bubble(answer.label, 'bot');
+    if (token !== state.token) return;
+    if (answer.label) bubble(answer.label, 'label');
     bubble(answer.answer, 'bot');
     if (Array.isArray(answer.followUps) && answer.followUps.length) {
       renderSuggestions(answer.followUps);
     }
   } catch (error) {
     pending.remove();
-    bubble(error.message, 'error');
+    if (token === state.token) bubble(error.message, 'error');
   } finally {
-    $('#askBtn').disabled = false;
+    if (token === state.token) $('#askBtn').disabled = false;
   }
 });
 
@@ -456,6 +549,13 @@ function renderCalc(result) {
   $('#calcSource').textContent = `Source: ${result.source}`;
 }
 
+$('#calcForm').addEventListener('input', () => {
+  if ($('#calcForm').checkValidity()) {
+    renderCalc(estimateAvoidedCO2($('#calcKm').value, $('#calcTrips').value));
+  } else {
+    $('#calcResults').textContent = 'Enter a distance and a whole number of trips within the allowed range.';
+  }
+});
 $('#calcForm').addEventListener('submit', (e) => {
   e.preventDefault();
   renderCalc(estimateAvoidedCO2($('#calcKm').value, $('#calcTrips').value));
@@ -464,7 +564,7 @@ $('#calcForm').addEventListener('submit', (e) => {
 /* ---------------- printable community plan ---------------- */
 function renderPrintSheet() {
   const plan = state.plan;
-  if (!plan) { $('#printSheet').innerHTML = ''; return; }
+  if (!plan?.communitySheet) { $('#printSheet').innerHTML = ''; return; }
   const chosen = Object.values(plan.library || {}).filter((a) => state.selected.has(a.id)).slice(0, 3);
   const ordered = chosen.length ? chosen : plan.communitySheet.actions;
   $('#printSheet').innerHTML = `
@@ -491,5 +591,30 @@ $('#printBtn').addEventListener('click', () => {
 loadPreferences();
 loadStatus();
 renderCalc(estimateAvoidedCO2(12, 3));
-setInputMode('example');
-submitPlan({ example: true });
+setInputMode('search');
+initIntelligence();
+initShell();
+$('#standard').value = saved('clearday.standard','in') === 'us' ? 'us' : 'in';
+renderReading(null,$('#standard').value);
+$('#standard').addEventListener('change', () => {
+  remember('clearday.standard',$('#standard').value);
+  renderReading(state.plan,$('#standard').value);
+});
+$('#pageRetry').onclick = () => submitPlan(lastAttempt);
+$('#reloadAir').onclick = () => submitPlan(state.source || lastAttempt);
+$('#cityInput').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && !$('#suggestions').hidden) {
+    e.preventDefault(); $('#suggestions button')?.focus();
+  }
+});
+$('#suggestions').addEventListener('keydown', e => {
+  const buttons = $$('#suggestions button');
+  const at = buttons.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    buttons[Math.min(buttons.length-1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+  } else if (e.key === 'Escape') {
+    e.preventDefault(); dismissSuggestions(); $('#cityInput').focus();
+  }
+});
+submitPlan(defaultCity);

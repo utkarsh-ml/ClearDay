@@ -1,130 +1,108 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="ClearDay turns today's air quality into a practical morning, midday and evening plan for your family or community." />
-  <title>ClearDay — what should we change about our day?</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌤️</text></svg>" />
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header class="topbar wrap">
-    <a class="brand" href="#top">
-      <span class="brand-mark" aria-hidden="true">◐</span>
-      <span>Clear<strong>Day</strong></span>
-    </a>
-    <nav class="nav-links" aria-label="Sections">
-      <a href="#air">Today's air</a>
-      <a href="#preferences">Preferences</a>
-      <a href="#plan">Daily plan</a>
-      <a href="#guide">Questions &amp; doubts</a>
-      <a href="#community">Community</a>
-    </nav>
-    <span class="mode-pill" id="modePill">Checking AI…</span>
-  </header>
-
-  <main id="top" class="wrap">
-    <section class="intro">
-      <p class="eyebrow">A winter-morning planning tool</p>
-      <h1>“Given the air outside, what should we change about our day?”</h1>
-      <p class="lede">ClearDay reads a local air-quality reading, learns how you actually live, and turns it into three practical time blocks — with the reason and the source behind every suggestion.</p>
-    </section>
-
-    <!-- OUTDOOR AIR QUALITY -->
-    <section class="air-section" id="air" aria-label="Outdoor air quality">
-      <article class="air-card" id="airCard">
-        <div class="air-card-inner">
-          <div class="air-card-top">
-            <div>
-              <p class="mini-label">Outdoor air quality</p>
-              <h2 id="airCity">No location selected</h2>
-            </div>
-            <span class="kind-badge" id="kindBadge">—</span>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore local air quality, compare hourly forecasts and plan lower-emission routines for your household or community.">
+  <meta name="theme-color" content="#142e26">
+  <title>ClearDay · Know Your Air. Plan Your Day.</title>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css?v=studio1"><link rel="stylesheet" href="/intelligence.css?v=studio1">
+</head><body>
+  <a class="skip" href="#content">Skip to content</a>
+  <aside class="rail" aria-label="Main sidebar">
+    <a class="brand" href="#overview" aria-label="ClearDay overview"><svg class="icon" aria-hidden="true"><use href="/icons.svg#logo"></use></svg><span>ClearDay</span></a>
+    <nav class="rail-nav" aria-label="Main navigation"><a href="#overview" title="Overview" data-link="overview"><svg class="icon" aria-hidden="true"><use href="/icons.svg#overview"></use></svg><span>Overview</span></a>
+      <a href="#air" title="Air quality" data-link="air"><svg class="icon" aria-hidden="true"><use href="/icons.svg#air"></use></svg><span>Air quality</span></a>
+      <a href="#plan" title="My daily plan" data-link="plan"><svg class="icon" aria-hidden="true"><use href="/icons.svg#plan"></use></svg><span>My daily plan</span></a>
+      <a href="#analytics" title="Analytics" data-link="analytics"><svg class="icon" aria-hidden="true"><use href="/icons.svg#analytics"></use></svg><span>Analytics</span></a>
+      <a href="#community" title="Community" data-link="community"><svg class="icon" aria-hidden="true"><use href="/icons.svg#community"></use></svg><span>Community</span></a>
+      <a href="#guide" title="ClearDay AI" data-link="guide"><svg class="icon" aria-hidden="true"><use href="/icons.svg#guide"></use></svg><span>ClearDay AI</span></a>
+      <a href="#preferences" title="Settings" data-link="preferences"><svg class="icon" aria-hidden="true"><use href="/icons.svg#preferences"></use></svg><span>Settings</span></a></nav>
+    <div class="rail-bottom"><div class="rail-sign"><svg class="icon" aria-hidden="true"><use href="/icons.svg#air"></use></svg><span>Know Your Air.<br>Plan Your Day.</span></div>
+    <button id="railToggle" aria-label="Collapse sidebar" aria-expanded="true"><svg class="icon" aria-hidden="true"><use href="/icons.svg#menu"></use></svg><span>Collapse sidebar</span></button></div>
+  </aside>
+  <div class="workspace">
+   <header class="topbar">
+    <a class="mobile-brand" href="#overview" aria-label="ClearDay overview"><svg class="icon" aria-hidden="true"><use href="/icons.svg#logo"></use></svg>ClearDay</a>
+    <button class="search-launch" type="button" data-location><svg class="icon" aria-hidden="true"><use href="/icons.svg#search"></use></svg><span>Search for a city</span></button>
+    <div class="tools"><button class="location-chip" data-location><svg class="icon" aria-hidden="true"><use href="/icons.svg#pin"></use></svg><span id="headerCity">New Delhi</span></button>
+    <button id="reloadAir" class="icon-btn" title="Refresh reading" aria-label="Refresh reading"><svg class="icon" aria-hidden="true"><use href="/icons.svg#refresh"></use></svg></button>
+    <button id="themeToggle" class="icon-btn" title="Change theme" aria-label="Switch to dark mode"><svg class="icon" aria-hidden="true"><use href="/icons.svg#theme"></use></svg></button></div>
+   </header>
+   <main id="content" tabindex="-1">
+    <div class="page-head"><div><p class="date-line" id="todayDate"></p><h1 id="pageTitle">Air overview</h1><p id="pageIntro">Local air conditions and your plan for the day.</p></div>
+    <label class="standard-control">AQI standard<select id="standard"><option value="in">India · CPCB</option><option value="us">United States · EPA</option></select></label></div>
+    <div class="request-error" id="pageError" role="alert" hidden><span id="pageErrorText"></span> <button id="pageRetry" type="button">Retry</button> <button data-location>Change location</button></div>
+    <div class="hero-grid" data-view="overview air">
+     <section id="airCard" class="hero" aria-labelledby="airTitle">
+      <div class="hero-top"><h2 id="airTitle"><svg class="icon" aria-hidden="true"><use href="/icons.svg#air"></use></svg> Current air quality</h2><span id="kindBadge">Awaiting data</span></div>
+      <div class="hero-reading"><button type="button" id="exploreGauge" class="gauge" aria-label="Explore the AQI scale">
+        <svg id="gaugeSvg" viewBox="0 0 200 158" aria-hidden="true"><path d="M27 130 A84 84 0 1 1 173 130" fill="none" stroke="#bfd2b2" stroke-width="10"/></svg>
+        <span class="gauge-value"><strong id="aqiNumber">—</strong><small id="scaleName">India AQI</small></span></button>
+       <div class="hero-copy"><p class="city-label"><svg class="icon" aria-hidden="true"><use href="/icons.svg#pin"></use></svg><span id="airCity">New Delhi, India</span></p><h3 id="category">Checking air…</h3>
+       <p id="aqiMeaning" aria-live="polite">Getting the latest model estimate.</p></div></div>
+      <div class="hero-meta"><span><svg class="icon" aria-hidden="true"><use href="/icons.svg#clock"></use></svg><span id="timeLine">Waiting for update</span></span><span id="sourceLine">Open-Meteo · CAMS</span></div>
+      <p id="sourceNote" class="source-note" hidden></p>
+     </section>
+     <aside class="brief"><div class="brief-top"><span class="brief-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#sun"></use></svg></span><h2>Daily briefing</h2></div>
+      <p class="brief-lbl">Leading pollutant</p><strong id="dominant">—</strong><p id="dominantInfo">Available with a local model reading.</p>
+      <div class="brief-action"><p class="brief-lbl">One change today</p><p id="headlineAction">Your daily plan appears with a reading.</p></div>
+      <a href="#plan">View my daily plan <svg class="icon" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></a>
+     </aside>
+    </div>
+    <section id="forecast" data-view="overview air"></section><section id="pollutants" data-view="overview air"></section>
+    <section id="analytics" data-view="analytics" hidden></section>
+    <section class="panel methods" data-view="air" hidden><h2>How to read these numbers</h2>
+    <p>Open-Meteo supplies regional CAMS model estimates. Local monitoring stations can report different conditions. Hourly values and historical charts use the selected city’s time zone.</p>
+    <p>The US index uses the provider’s US AQI. ClearDay estimates India’s index from eligible rolling pollutant averages. The largest available sub-index determines the category. A missing pollutant can affect the result.</p>
+    <div class="source-links"><a href="https://open-meteo.com/en/docs/air-quality-api" target="_blank" rel="noreferrer">Open-Meteo / CAMS</a><a href="https://airquality.cpcb.gov.in/ccr_docs/About_AQI.pdf" target="_blank" rel="noreferrer">CPCB methodology</a><a href="https://www.airnow.gov/aqi/aqi-basics/" target="_blank" rel="noreferrer">AirNow guidance</a></div></section>
+<section class="plan-column" id="plan" data-view="plan" hidden aria-labelledby="planTitle">
+        <div class="section-head">
+          <div>
+            
+            <h2 id="planTitle">Your timeline</h2>
           </div>
+          <p class="section-sub" id="planSummary">Set a reading to see actions.</p>
+        </div>
 
-          <div class="air-reading">
-            <div class="aqi-block">
-              <p class="aqi-number" id="aqiNumber">—</p>
-              <p class="aqi-caption">US AQI · 0–500 scale</p>
-            </div>
-            <div class="meaning-block">
-              <p class="meaning-label">What it means</p>
-              <p class="meaning" id="aqiMeaning">Search for a city or enter a reading to begin.</p>
-              <p class="headline-action" id="headlineAction" hidden></p>
-            </div>
+        <p id="planBasis" class="hint"></p><div class="plan-toolbar">
+          <label class="check filter-check"><input type="checkbox" id="noCostFilter" /> <span>No-cost options only <small>(no equipment to buy)</small></span></label>
+          <span class="selected-count" id="selectedCount">0 of 3 selected for print</span>
+        </div>
+
+        <div id="planBlocks"></div>
+        <p class="empty-state" id="planEmpty">Set an AQI reading above to generate your morning, midday and evening plan.</p>
+
+        <div class="impact-strip" id="impactStrip" hidden>
+          <div><span>Combined exposure change</span><strong id="impactDose">—</strong></div>
+          <div><span>Estimated CO₂e avoided</span><strong id="impactCo2">—</strong></div>
+          <p id="impactNote">Modelled estimate from your selected actions. Not a health outcome.</p>
+        </div>
+      </section>
+
+      <section class="panel guide" id="guide" data-view="guide" hidden aria-labelledby="guideTitle">
+        <div class="guide-head">
+          <div>
+            
+            <h2 id="guideTitle">Ask ClearDay</h2>
           </div>
-
-          <div class="aqi-scale" id="aqiScale" aria-label="AQI category scale">
-            <div class="scale-band"><span>0–50 Good</span></div>
-            <div class="scale-band"><span>51–100 Moderate</span></div>
-            <div class="scale-band"><span>101–150 Sensitive</span></div>
-            <div class="scale-band"><span>151–200 Unhealthy</span></div>
-            <div class="scale-band"><span>201+ Very unhealthy</span></div>
-            <div class="scale-marker" id="scaleMarker" hidden aria-hidden="true"></div>
-          </div>
-          <p class="advisory" id="advisory">Every AQI colour is labelled in words here — colour is never the only signal.</p>
-
-          <div class="air-meta">
-            <span id="sourceLine">Source: none yet</span>
-            <span id="timeLine">Local time: —</span>
-          </div>
-          <p class="source-note" id="sourceNote" hidden></p>
+          <span class="guide-badge" id="guideBadge">Rules-based</span>
         </div>
-      </article>
-
-      <aside class="panel air-input" aria-labelledby="airInputTitle">
-        <h2 id="airInputTitle">Set today's reading</h2>
-        <div class="segmented" role="group" aria-label="Reading input method">
-          <button type="button" class="seg active" data-mode="search" aria-pressed="true">Find city</button>
-          <button type="button" class="seg" data-mode="manual" aria-pressed="false">Manual AQI</button>
-          <button type="button" class="seg" data-mode="example" aria-pressed="false">Example</button>
+        <p id="modePill" class="hint">Checking guide availability…</p><p class="guide-sub" id="guideSub">Answers use the selected city, AQI, your preferences and sourced guidance.</p>
+        <p class="guide-provider" id="guideProvider" hidden></p>
+        <div class="chat-log" id="chatLog" role="log" aria-live="polite">
+          <div class="bubble bot">Ask a question or tell me your doubt about today's air. I'll use the reading and preferences you set above.</div>
         </div>
-
-        <div id="searchPanel">
-          <form id="cityForm" autocomplete="off">
-            <label for="cityInput">City name or coordinates</label>
-            <div class="input-row">
-              <input id="cityInput" type="text" placeholder="Try Lahore, Delhi or 28.61, 77.21" />
-              <button class="btn primary" type="submit">Look up</button>
-            </div>
-          </form>
-          <div class="suggestions" id="suggestions" role="listbox" hidden></div>
-          <p class="hint">Modeled estimate from Open-Meteo (CAMS), not a street-side monitor.</p>
-        </div>
-
-        <div id="manualPanel" hidden>
-          <form id="manualForm">
-            <label for="manualAqi">Your local US AQI reading (0–500)</label>
-            <input id="manualAqi" type="number" min="0" max="500" step="1" value="150" required />
-            <label for="manualLabel">Label for this reading</label>
-            <input id="manualLabel" type="text" value="Neighbourhood sensor" maxlength="60" />
-            <button class="btn primary full" type="submit">Use this reading</button>
-          </form>
-          <p class="hint">Manual readings are labelled as user-supplied and are never verified by ClearDay.</p>
-        </div>
-
-        <div id="examplePanel" hidden>
-          <p>Use a fixed AQI 162 winter-morning scenario to explore the tool without live data.</p>
-          <button class="btn primary full" type="button" id="exampleBtn">Load example scenario</button>
-        </div>
-
-        <div class="error-box" id="lookupError" role="alert" hidden>
-          <p id="lookupErrorText">We couldn't reach the city lookup.</p>
-          <div class="error-actions">
-            <button type="button" class="btn ghost" id="retryBtn">Retry search</button>
-            <button type="button" class="btn ghost" id="useManualBtn">Enter AQI manually</button>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <!-- PREFERENCES -->
-    <section class="panel preferences" id="preferences" aria-labelledby="prefsTitle">
+        <div class="ask-suggestions" id="askSuggestions"></div>
+        <form class="chat-input" id="askForm">
+          <label class="sr-only" for="askInput">Your question or doubt</label>
+          <input id="askInput" type="text" maxlength="600" placeholder="Ask about your air or daily plan…" />
+          <button class="btn primary" type="submit" id="askBtn">Ask</button>
+        </form><div class="source-links"><a href="https://www.airnow.gov/aqi/aqi-basics/" target="_blank" rel="noreferrer">AirNow guidance</a><a href="#plan">Sources for your plan</a></div>
+      </section>
+    <section class="panel preferences" id="preferences" data-view="preferences" hidden aria-labelledby="prefsTitle">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Who are we planning for?</p>
-          <h2 id="prefsTitle">Your usual day</h2>
+          
+          <h2 id="prefsTitle">Household preferences</h2>
         </div>
         <p class="saved-note" id="savedNote" role="status">Preferences save in this browser automatically.</p>
       </div>
@@ -169,63 +147,22 @@
           </div>
         </fieldset>
       </div>
-      <button class="btn primary" type="button" id="refreshBtn">Update my plan</button>
+      <button class="btn primary" type="button" id="refreshBtn" disabled>Update my plan</button>
     </section>
 
-    <!-- DASHBOARD: PLAN BESIDE GUIDE ON DESKTOP -->
-    <div class="dashboard">
-      <section class="plan-column" id="plan" aria-labelledby="planTitle">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Your day, block by block</p>
-            <h2 id="planTitle">Daily plan</h2>
-          </div>
-          <p class="section-sub" id="planSummary">Set a reading to see actions.</p>
-        </div>
-
-        <div class="plan-toolbar">
-          <label class="check filter-check"><input type="checkbox" id="noCostFilter" /> <span>No-cost options only <small>(no equipment to buy)</small></span></label>
-          <span class="selected-count" id="selectedCount">0 of 3 selected for print</span>
-        </div>
-
-        <div id="planBlocks"></div>
-        <p class="empty-state" id="planEmpty" hidden>Set an AQI reading above to generate your morning, midday and evening plan.</p>
-
-        <div class="impact-strip" id="impactStrip" hidden>
-          <div><span>Combined exposure change</span><strong id="impactDose">—</strong></div>
-          <div><span>Estimated CO₂e avoided</span><strong id="impactCo2">—</strong></div>
-          <p id="impactNote">Modelled estimate from your selected actions. Not a health outcome.</p>
-        </div>
-      </section>
-
-      <section class="panel guide" id="guide" aria-labelledby="guideTitle">
-        <div class="guide-head">
-          <div>
-            <p class="eyebrow">Ask a question or share a doubt</p>
-            <h2 id="guideTitle">Questions &amp; doubts</h2>
-          </div>
-          <span class="guide-badge" id="guideBadge">Rules-based</span>
-        </div>
-        <p class="guide-sub" id="guideSub">Answers use the selected city, AQI, your preferences and sourced guidance.</p>
-        <p class="guide-provider" id="guideProvider" hidden></p>
-        <div class="chat-log" id="chatLog" role="log" aria-live="polite">
-          <div class="bubble bot">Ask a question or tell me your doubt about today's air. I'll use the reading and preferences you set above.</div>
-        </div>
-        <div class="ask-suggestions" id="askSuggestions"></div>
-        <form class="chat-input" id="askForm">
-          <label class="sr-only" for="askInput">Your question or doubt</label>
-          <input id="askInput" type="text" maxlength="600" placeholder="I have a doubt — we walk to school and have no purifier…" />
-          <button class="btn primary" type="submit" id="askBtn">Ask</button>
-        </form>
-      </section>
-    </div>
-
-    <!-- IMPACT CALCULATOR -->
-    <section class="panel calculator" id="calculator" aria-labelledby="calcTitle">
+    <section class="panel community" id="community" data-view="community" hidden aria-labelledby="communityTitle">
+      <div>
+        
+        <h2 id="communityTitle">Print a one-page community plan</h2>
+        <p>Choose up to three actions using the checkboxes in the daily plan. The printout includes only the city, AQI source and time, and those actions — never personal details or chat history.</p>
+      </div>
+      <a class="link-btn" href="#plan">Choose actions</a><button class="btn primary large" type="button" id="printBtn" disabled>Print community plan</button>
+    </section>
+  <section class="panel calculator" id="calculator" data-view="plan community" hidden aria-labelledby="calcTitle">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Impact calculator</p>
-          <h2 id="calcTitle">Trips you replace, tailpipe CO₂ avoided</h2>
+          
+          <h2 id="calcTitle">Trip impact calculator</h2>
         </div>
         <p class="section-sub">Only tailpipe CO₂ is estimated. ClearDay does not predict a change in local AQI or your health.</p>
       </div>
@@ -244,25 +181,53 @@
       </details>
     </section>
 
-    <!-- COMMUNITY PRINT -->
-    <section class="panel community" id="community" aria-labelledby="communityTitle">
-      <div>
-        <p class="eyebrow">For a school or residents' group</p>
-        <h2 id="communityTitle">Print a one-page community plan</h2>
-        <p>Choose up to three actions using the checkboxes in the daily plan. The printout includes only the city, AQI source and time, and those actions — never personal details or chat history.</p>
-      </div>
-      <button class="btn primary large" type="button" id="printBtn" disabled>Print community plan</button>
-    </section>
-  </main>
+    </main><footer>ClearDay <span>·</span> Follow local air-quality advisories for your area.</footer></div>
+<nav class="mobile-nav" aria-label="Mobile navigation"><a href="#overview" title="Overview" data-link="overview"><svg class="icon" aria-hidden="true"><use href="/icons.svg#overview"></use></svg><span>Overview</span></a><a href="#plan" title="My daily plan" data-link="plan"><svg class="icon" aria-hidden="true"><use href="/icons.svg#plan"></use></svg><span>My daily plan</span></a><a href="#analytics" title="Analytics" data-link="analytics"><svg class="icon" aria-hidden="true"><use href="/icons.svg#analytics"></use></svg><span>Analytics</span></a><a href="#guide" title="ClearDay AI" data-link="guide"><svg class="icon" aria-hidden="true"><use href="/icons.svg#guide"></use></svg><span>ClearDay AI</span></a><button id="moreBtn"><svg class="icon" aria-hidden="true"><use href="/icons.svg#more"></use></svg><span>More</span></button></nav>
+<dialog id="moreDialog"><div class="dialog-head"><h2>More sections</h2><button class="icon-btn" aria-label="Close" data-close><svg class="icon" aria-hidden="true"><use href="/icons.svg#close"></use></svg></button></div><nav class="extra-nav"><a href="#air" title="Air quality" data-link="air"><svg class="icon" aria-hidden="true"><use href="/icons.svg#air"></use></svg><span>Air quality</span></a><a href="#community" title="Community" data-link="community"><svg class="icon" aria-hidden="true"><use href="/icons.svg#community"></use></svg><span>Community</span></a><a href="#preferences" title="Settings" data-link="preferences"><svg class="icon" aria-hidden="true"><use href="/icons.svg#preferences"></use></svg><span>Settings</span></a></nav></dialog>
+<dialog id="scaleDialog"><div class="dialog-head"><h2>Explore the AQI scale</h2><button class="icon-btn" aria-label="Close" data-close><svg class="icon" aria-hidden="true"><use href="/icons.svg#close"></use></svg></button></div><p id="scaleExplanation"></p><div id="scaleLegend"></div><label for="compareAqi">Try a comparison reading</label><input type="range" id="compareAqi" min="0" max="500" value="100"><output id="compareResult" for="compareAqi"></output></dialog>
+<dialog id="locationDialog" aria-labelledby="airInputTitle"><div class="dialog-head"><h2 id="airInputTitle">Choose a reading</h2><button class="icon-btn" aria-label="Close" data-close><svg class="icon" aria-hidden="true"><use href="/icons.svg#close"></use></svg></button></div>
+<div class="segmented" role="group" aria-label="Reading input method">
+          <button type="button" class="seg active" data-mode="search" aria-pressed="true">Find city</button>
+          <button type="button" class="seg" data-mode="manual" aria-pressed="false">Manual AQI</button>
+          <button type="button" class="seg" data-mode="example" aria-pressed="false">Example</button>
+        </div>
 
-  <footer class="footer wrap">
-    <p><strong>ClearDay</strong> · Planning guidance, not medical advice. Follow local health advisories during air-quality emergencies.</p>
-  </footer>
+        <div id="searchPanel">
+          <button type="button" class="btn locate" id="locateBtn">Use my current location</button>
+          <p class="hint" id="locationStatus" role="status">Share an approximate area with Open-Meteo for a local air estimate.</p>
+          <form id="cityForm" autocomplete="off">
+            <label for="cityInput">City name or coordinates</label>
+            <div class="input-row">
+              <input id="cityInput" type="text" placeholder="Try Lahore, Delhi or 28.61, 77.21" />
+              <button class="btn primary" type="submit">Look up</button>
+            </div>
+          </form>
+          <div class="suggestions" id="suggestions" aria-label="Matching locations" hidden></div>
+          <p class="hint">City results use the Open-Meteo location directory.</p>
+        </div>
 
-  <!-- Print-only sheet: populated by app.js, deliberately contains no profile or chat data. -->
-  <section id="printSheet" class="print-sheet" aria-hidden="true"></section>
+        <div id="manualPanel" hidden>
+          <form id="manualForm">
+            <label for="manualAqi">Your local US AQI reading (0–500)</label>
+            <input id="manualAqi" type="number" min="0" max="500" step="1" value="150" required />
+            <label for="manualLabel">Label for this reading</label>
+            <input id="manualLabel" type="text" value="Neighbourhood sensor" maxlength="60" />
+            <button class="btn primary full" type="submit">Use this reading</button>
+          </form>
+          <p class="hint">Manual readings are labelled as user-supplied and are never verified by ClearDay.</p>
+        </div>
 
-  <div class="toast" id="toast" role="status" hidden></div>
-  <script type="module" src="app.js"></script>
-</body>
-</html>
+        <div id="examplePanel" hidden>
+          <p>Use a fixed AQI 162 winter-morning scenario to explore the tool without live data.</p>
+          <button class="btn primary full" type="button" id="exampleBtn">Load example scenario</button>
+        </div>
+
+        <div class="error-box" id="lookupError" role="alert" hidden>
+          <p id="lookupErrorText">We couldn't reach the city lookup.</p>
+          <div class="error-actions">
+            <button type="button" class="btn ghost" id="retryBtn">Retry search</button>
+            <button type="button" class="btn ghost" id="useManualBtn">Enter AQI manually</button>
+          </div>
+        </div>
+      </dialog><section id="printSheet" class="print-sheet" aria-hidden="true"></section><div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="/app.js?v=studio1"></script></body></html>

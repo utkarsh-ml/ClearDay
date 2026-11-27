@@ -4,15 +4,18 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { gzip } from 'node:zlib';
 import { searchCity, getAirQuality, airFromManualAqi, airFromExample } from './lib/aqi.js';
+import { getEnvironment, EnvironmentError } from './lib/environment.js';
 import { createPlan, answerQuestion } from './lib/plan.js';
+import { presentAir } from './lib/dayplan.js';
 import { estimateAvoidedCO2 } from './lib/calc.js';
 import { llmInfo } from './lib/llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const PORT = Number(process.env.PORT || 4000);
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '127.0.0.2';
 const PLAN_TTL_MS = 2 * 60 * 60 * 1000;
 
 const MIME = {
@@ -107,14 +110,29 @@ function isSameOrigin(req) {
 }
 
 function json(res, status, body) {
-  const payload = JSON.stringify(body);
-  res.writeHead(status, {
+  const payload = Buffer.from(JSON.stringify(body));
+  const headers = {
     ...SECURITY_HEADERS,
+    ...(status === 429 ? { 'Retry-After': '60' } : {}),
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(payload),
     'Cache-Control': 'no-store',
+    Vary: 'Accept-Encoding',
+  };
+  const finish = (buffer, encoding) => {
+    if (res.destroyed) return;
+    if (encoding) headers['Content-Encoding'] = encoding;
+    res.writeHead(status, { ...headers, 'Content-Length': buffer.length });
+    res.end(buffer);
+  };
+  const gzipAllowed = String(res.req.headers['accept-encoding'] || '').split(',').some(entry => {
+    const [codec, quality] = entry.trim().split(';').map(part => part.trim());
+    return codec === 'gzip' && (!quality || Number(quality.replace(/^q=/, '')) > 0);
   });
-  res.end(payload);
+  if (payload.length >= 4096 && gzipAllowed) {
+    gzip(payload, { level: 4 }, (error, compressed) => {
+      if (error) finish(payload); else finish(compressed, 'gzip');
+    });
+  } else finish(payload);
 }
 
 async function readBody(req, limit = 64_000) {
@@ -235,6 +253,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { results: await searchCity(q) });
     }
 
+    if (['/api/environment', '/api/history'].includes(pathname) && req.method === 'GET') {
+      if (!allowRequest(req, 'environment', 50)) return json(res, 429, { error: 'Too many air-data requests. Please try again in a minute.' });
+      const days = pathname === '/api/history' ? Number(url.searchParams.get('days') ?? 1) : 0;
+      if (pathname === '/api/history' && ![1, 7, 30].includes(days)) throw new HttpError(400, 'Choose a history of 1, 7 or 30 days.');
+      const lat = url.searchParams.get('lat');
+      const lon = url.searchParams.get('lon');
+      if (!lat?.trim() || !lon?.trim() || !isValidCoordinates(Number(lat), Number(lon))) {
+        throw new HttpError(400, 'Select a city with valid coordinates.');
+      }
+      return json(res, 200, await getEnvironment({ latitude: Number(lat), longitude: Number(lon) }, days));
+    }
+
     if (pathname === '/api/aqi' && req.method === 'GET') {
       if (!allowRequest(req, 'aqi', 60)) return json(res, 429, { error: 'Too many air-quality requests. Please wait a moment.' });
       if (url.searchParams.has('aqi')) {
@@ -266,6 +296,12 @@ const server = http.createServer(async (req, res) => {
         if (!place) return json(res, 400, { error: 'We could not find that location. Try a nearby city or latitude,longitude, or enter a manual AQI.' });
         air = await getAirQuality(place);
       }
+      if (air.aqi === null) {
+        return json(res, 200, {
+          planUnavailable: true, reason: 'US AQI is unavailable for the daily plan. You can enter a manual US reading.',
+          token: null, air: presentAir(air),
+        });
+      }
       const plan = await createPlan(body.profile || {}, air);
       return json(res, 200, { ...plan, token: storePlan(plan) });
     }
@@ -290,8 +326,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, reply);
     }
 
-    if (pathname === '/shared/calc.js' && (req.method === 'GET' || req.method === 'HEAD')) {
-      const data = await readFile(path.join(__dirname, 'lib', 'calc.js'));
+    if (['/shared/calc.js', '/shared/standards.js'].includes(pathname) && (req.method === 'GET' || req.method === 'HEAD')) {
+      const data = await readFile(path.join(__dirname, 'lib', path.basename(pathname)));
       res.writeHead(200, {
         ...SECURITY_HEADERS,
         'Content-Type': MIME['.js'],
@@ -304,7 +340,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname.startsWith('/api/')) return json(res, 404, { error: 'Unknown endpoint' });
     return serveStatic(req, res, pathname);
   } catch (error) {
-    if (error instanceof HttpError) {
+    if (error instanceof HttpError || error instanceof EnvironmentError) {
       return json(res, error.status, { error: error.message });
     }
     console.error('[server error]', error?.message || 'Unexpected error');
