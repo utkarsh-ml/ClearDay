@@ -1,0 +1,9 @@
+# Never commit secrets or local environment overrides
+.env
+.env.*
+!.env.example
+
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db

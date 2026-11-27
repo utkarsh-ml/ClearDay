@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 620" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustrated winter city skyline in morning haze">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dcd8f2"/>
+      <stop offset="0.55" stop-color="#ece9f7"/>
+      <stop offset="1" stop-color="#f6f3fb"/>
+    </linearGradient>
+    <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.82"/>
+    </linearGradient>
+    <linearGradient id="bldg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fa6c6"/>
+      <stop offset="1" stop-color="#c9cbdd"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="620" fill="url(#sky)"/>
+  <circle cx="1180" cy="150" r="64" fill="#fff6e2" opacity="0.75"/>
+
+  <!-- distant skyline -->
+  <g fill="#b9bcd6" opacity="0.75">
+    <rect x="40" y="280" width="90" height="220"/>
+    <rect x="150" y="230" width="60" height="270"/>
+    <rect x="230" y="300" width="120" height="200"/>
+    <rect x="380" y="250" width="70" height="250"/>
+    <rect x="470" y="290" width="110" height="210"/>
+    <rect x="610" y="210" width="80" height="290"/>
+    <rect x="720" y="270" width="130" height="230"/>
+    <rect x="880" y="240" width="75" height="260"/>
+    <rect x="980" y="295" width="115" height="205"/>
+    <rect x="1120" y="225" width="95" height="275"/>
+    <rect x="1240" y="275" width="130" height="225"/>
+    <rect x="1400" y="245" width="85" height="255"/>
+    <rect x="1510" y="300" width="80" height="200"/>
+  </g>
+
+  <!-- mid skyline -->
+  <g fill="url(#bldg)" opacity="0.86">
+    <rect x="95" y="345" width="150" height="155"/>
+    <rect x="270" y="315" width="115" height="185"/>
+    <rect x="410" y="365" width="175" height="135"/>
+    <rect x="640" y="330" width="140" height="170"/>
+    <rect x="820" y="355" width="160" height="145"/>
+    <rect x="1040" y="320" width="125" height="180"/>
+    <rect x="1215" y="350" width="185" height="150"/>
+    <rect x="1440" y="335" width="130" height="165"/>
+  </g>
+
+  <!-- windows -->
+  <g fill="#f7f4ff" opacity="0.62">
+    <rect x="120" y="370" width="12" height="16"/><rect x="150" y="370" width="12" height="16"/><rect x="180" y="370" width="12" height="16"/><rect x="210" y="370" width="12" height="16"/>
+    <rect x="120" y="405" width="12" height="16"/><rect x="180" y="405" width="12" height="16"/><rect x="210" y="405" width="12" height="16"/>
+    <rect x="295" y="340" width="12" height="16"/><rect x="325" y="340" width="12" height="16"/><rect x="355" y="340" width="12" height="16"/>
+    <rect x="295" y="375" width="12" height="16"/><rect x="355" y="375" width="12" height="16"/>
+    <rect x="665" y="355" width="12" height="16"/><rect x="695" y="355" width="12" height="16"/><rect x="725" y="355" width="12" height="16"/><rect x="755" y="355" width="12" height="16"/>
+    <rect x="665" y="390" width="12" height="16"/><rect x="725" y="390" width="12" height="16"/>
+    <rect x="850" y="380" width="12" height="16"/><rect x="880" y="380" width="12" height="16"/><rect x="940" y="380" width="12" height="16"/>
+    <rect x="1065" y="345" width="12" height="16"/><rect x="1095" y="345" width="12" height="16"/><rect x="1125" y="345" width="12" height="16"/>
+    <rect x="1240" y="375" width="12" height="16"/><rect x="1270" y="375" width="12" height="16"/><rect x="1360" y="375" width="12" height="16"/>
+    <rect x="1465" y="360" width="12" height="16"/><rect x="1495" y="360" width="12" height="16"/><rect x="1525" y="360" width="12" height="16"/>
+  </g>
+
+  <!-- road and trees -->
+  <rect x="0" y="500" width="1600" height="120" fill="#d9d9e8"/>
+  <rect x="0" y="500" width="1600" height="5" fill="#c6c6da"/>
+  <g stroke="#8f93b2" stroke-width="3" fill="none" opacity="0.8">
+    <path d="M120 500 v-70 M120 445 l-24 -20 M120 445 l24 -20 M120 425 l-18 -18 M120 425 l18 -18"/>
+    <path d="M520 500 v-62 M520 450 l-22 -18 M520 450 l22 -18"/>
+    <path d="M980 500 v-74 M980 442 l-26 -22 M980 442 l26 -22 M980 420 l-18 -18 M980 420 l18 -18"/>
+    <path d="M1390 500 v-66 M1390 452 l-22 -20 M1390 452 l22 -20"/>
+  </g>
+  <g fill="#f7f7fd" opacity="0.8">
+    <ellipse cx="120" cy="500" rx="34" ry="5"/><ellipse cx="520" cy="500" rx="26" ry="4"/><ellipse cx="980" cy="500" rx="38" ry="5"/><ellipse cx="1390" cy="500" rx="28" ry="4"/>
+  </g>
+
+  <rect x="0" y="250" width="1600" height="370" fill="url(#haze)"/>
+</svg>
