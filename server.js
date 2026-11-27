@@ -11,8 +11,8 @@ import { llmInfo } from './lib/llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const PORT = Number(process.env.PORT || 3000);
-const HOST = process.env.HOST || '127.0.0.1';
+const PORT = Number(process.env.PORT || 4000);
+const HOST = process.env.HOST || '0.0.0.0';
 const PLAN_TTL_MS = 2 * 60 * 60 * 1000;
 
 const MIME = {
